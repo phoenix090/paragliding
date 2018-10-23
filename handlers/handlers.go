@@ -3,44 +3,50 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/marni/goigc"
 	"net/http"
 	"paragliding/database"
-	"paragliding/model"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/marni/goigc"
 )
 
 /*   Global vars   */
+
+// Start time of the api
 var Start time.Time
-var id int
+
+//Global_db
 var GlobalDB database.MongoDB
+
+//ticker obj
+var ticker database.Ticker
 
 /*
 Redirects req from paragliding/ to paragliding/api/
- */
-func Redirect(w http.ResponseWriter, r *http.Request){
+*/
+func Redirect(w http.ResponseWriter, r *http.Request) {
 
 	reg := regexp.MustCompile("^/(paragliding/)$")
 	parts := reg.FindStringSubmatch(r.URL.Path)
 	if parts != nil {
-		http.Redirect(w, r, r.URL.Path +"/api/", 301)
+		http.Redirect(w, r, r.URL.Path+"/api/", 301)
 	} else {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 	}
 }
 
 /*
-** Basepoint of the API. Gives basic info about the API
+** Index Basepoint of the API. Gives basic info about the API
  */
 func Index(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	reg := regexp.MustCompile("^/paragliding/(api/)$")
 	parts := reg.FindStringSubmatch(r.URL.Path)
 
-	uptime := model.GetUptime(Start)
+	uptime := GetUptime(Start)
 
 	if parts != nil {
 		if r.Method == "GET" {
@@ -57,7 +63,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-** Accepts POST or GET request
+** RegAndShowTrack Accepts POST or GET request
 ** Restores a track when the right igc- url is sent with POST
 ** Shows slices of IDs of tracks restored in the memory when GET are used
  */
@@ -66,49 +72,15 @@ func RegAndShowTrack(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "POST":
-		var url database.URL
-		defer r.Body.Close()
-		if err := json.NewDecoder(r.Body).Decode(&url); err != nil {
-			http.Error(w, "Malformed igc- url. The api only accepts JSON", 404)
-		}
-
-		track, err := igc.ParseLocation(url.Url)
-		if err != nil {
-			http.Error(w, "Empty or wrong igc url provided", 404)
-		} else {
-			var trackLen float64
-			for i := 0; i < len(track.Points)-1; i++ {
-				trackLen += track.Points[i].Distance(track.Points[i+1])
-			}
-
-			if err != nil {
-				http.Error(w, "Error connecting to db", 404)
-			}
-			count := GlobalDB.Count()
-			id = count + 1
-
-			newTrack := database.Track{
-				TrackID: id,
-				HDate: track.Date,
-				Pilot: track.Pilot, Glider: track.GliderType,
-				GliderId: track.GliderID, TrackLength: trackLen,
-				Track_src_url: url.Url,
-			}
-			err = GlobalDB.Add(newTrack)
-			if err != nil {
-				http.Error(w, "Error inserting track into db", 404)
-			}
-			json.NewEncoder(w).Encode(id)
-		}
+		HandleTrackPost(w, r)
 
 	case "GET":
 		allTracks, ok := GlobalDB.GetAll()
 		if !ok {
 			http.Error(w, "Error getting all the tracks", 404)
 		}
-		fmt.Println(GlobalDB.Count())
 		var allIDs = make([]int, GlobalDB.Count())
-		for index, tr:= range allTracks {
+		for index, tr := range allTracks {
 			allIDs[index] = tr.TrackID
 		}
 		json.NewEncoder(w).Encode(allIDs)
@@ -117,10 +89,48 @@ func RegAndShowTrack(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-/*
-** Retrieves a track by its id, Accepts only GET
- */
+// HandleTrackPost Handles track registration and ticker update
+func HandleTrackPost(w http.ResponseWriter, r *http.Request) {
+	var url database.URL
+	defer r.Body.Close()
+	if err := json.NewDecoder(r.Body).Decode(&url); err != nil {
+		http.Error(w, "Malformed igc- url. The api only accepts JSON", 404)
+	}
 
+	track, err := igc.ParseLocation(url.Url)
+	if err != nil {
+		http.Error(w, "Empty or wrong igc url provided", 404)
+	} else {
+		var trackLen float64
+		for i := 0; i < len(track.Points)-1; i++ {
+			trackLen += track.Points[i].Distance(track.Points[i+1])
+		}
+
+		if err != nil {
+			http.Error(w, "Error connecting to db", 404)
+		}
+		count := GlobalDB.Count()
+		id := count + 1
+
+		newTrack := database.Track{
+			TrackID: id,
+			HDate:   track.Date,
+			Pilot:   track.Pilot, Glider: track.GliderType,
+			GliderId: track.GliderID, TrackLength: trackLen,
+			Track_src_url: url.Url,
+			Timestamp:     time.Now(),
+		}
+		err = GlobalDB.Add(newTrack)
+		if err != nil {
+			http.Error(w, "Error inserting track into db", 404)
+		}
+		json.NewEncoder(w).Encode(id)
+	}
+}
+
+/*
+** ShowTrackInfo Retrieves a track by its id, Accepts only GET
+ */
 func ShowTrackInfo(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -160,8 +170,8 @@ func ShowTrackInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-** Retrieves the track field, Accepts only GET
-*/
+** ShowTrackField Retrieves the track field, Accepts only GET
+ */
 func ShowTrackField(w http.ResponseWriter, r *http.Request, obj database.Track, field string) {
 	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 
@@ -172,11 +182,154 @@ func ShowTrackField(w http.ResponseWriter, r *http.Request, obj database.Track, 
 		fmt.Fprint(w, obj.Glider)
 	case "glider_id":
 		fmt.Fprint(w, obj.GliderId)
-	case "calculated total track length":
+	case "track_length":
 		fmt.Fprint(w, obj.TrackLength)
 	case "H_date":
 		fmt.Fprint(w, obj.HDate)
+	case "track_src_url":
+		fmt.Fprint(w, obj.Track_src_url)
 	default:
 		http.Error(w, "Wrong field provided", http.StatusNotFound)
 	}
+}
+
+/****		TICKER HANDLERS		 ***/
+
+/*
+GET /api/ticker/latest
+
+
+What: returns the timestamp of the latest added track
+Response type: text/plain
+Response code: 200 if everything is OK, appropriate error code otherwise.
+Response: <timestamp> for the latest added track
+GetLatestTicker
+*/
+func GetLatestTicker(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
+	if r.Method == "GET" {
+		process := time.Now()
+		PopulateTickerInfo()
+		t := time.Now()
+		ticker.Process = t.Sub(process)
+		// eller after := time.Since(process).Seconds() / 1000
+		fmt.Fprint(w, ticker.TLatest)
+	} else {
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+	}
+}
+
+/*
+
+GET /api/ticker/
+
+
+What: returns the JSON struct representing the ticker for the IGC tracks. The first track returned should be the oldest. The array of track ids returned should be capped at 5, to emulate "paging" of the responses. The cap (5) should be a configuration parameter of the application (ie. easy to change by the administrator).
+Response type: application/json
+Response code: 200 if everything is OK, appropriate error code otherwise.
+Response
+*/
+func GetTickerInfo(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	if r.Method == "GET" {
+		process := time.Now()
+		PopulateTickerInfo()
+		t := time.Now()
+		ticker.Process = t.Sub(process)
+		parts := strings.Split(r.URL.Path, "/")
+		//fmt.Println(parts[3], len(parts))
+		if len(parts) == 4 && parts[3] != "" {
+			// skal håndtere GET /api/ticker/<timestamp>
+		}
+		json.NewEncoder(w).Encode(ticker)
+	} else {
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+	}
+}
+
+// Populates ticker obj dynamicly
+func PopulateTickerInfo() database.Ticker {
+	totTracks, ok := GlobalDB.GetAll()
+	ticker = database.Ticker{}
+	if !ok {
+		fmt.Println("something went wrong when getting all tracks")
+	}
+
+	for idx, track := range totTracks {
+		if idx == 0 {
+			ticker.TStart = track.Timestamp
+		}
+		ticker.Tracks = append(ticker.Tracks, track.TrackID)
+		if idx+1 == GlobalDB.Count() {
+			ticker.TLatest = track.Timestamp
+			ticker.TStop = track.Timestamp
+		}
+	}
+	return ticker
+}
+
+// WEBHOOKS API
+
+/*
+POST /api/webhook/new_track/
+
+
+What: Registration of new webhook for notifications about tracks being added to the system. Returns the details about the registration. The webhookURL is required parameter of the request. The minTriggerValue is optional integer, that defaults to 1 if ommited. It indicated the frequency of updates - after how many new tracks the webhook should be called.
+Response type: application/json
+Response code: 200 or 201 if everything is OK, appropriate error code otherwise.
+Request
+
+
+{
+    "webhookURL": {
+      "type": "string"
+    },
+    "minTriggerValue": {
+      "type": "number"
+    }
+}
+*/
+
+/*
+** GetUptime updates uptime and formates it in ISO 8601 standard
+ */
+func GetUptime(t time.Time) (uptime string) {
+	now := time.Now()
+	newTime := now.Sub(t)
+	hours := int(newTime.Hours())
+	sek := strconv.Itoa(int(newTime.Seconds()) % 36000 % 60)
+	var min, hour, y, m, d string
+
+	// checking and setting when min gets to 1 or more
+	if int(newTime.Seconds())%36000 >= 60 {
+		min = strconv.Itoa(int(newTime.Minutes()) % 60)
+	}
+
+	// checking and setting when hour gets to 1 or more
+	if hours >= 1 {
+		hour = strconv.Itoa(hours)
+	}
+
+	// Setting the days correct
+	if hours > 23 {
+		d = strconv.Itoa(hours / 24)
+		hour = strconv.Itoa(hours % 24)
+	}
+	days, _ := strconv.Atoi(d)
+	// Setting the month correct
+	if days > 31 {
+		m = strconv.Itoa(days / 31)
+		d = strconv.Itoa(days % 31)
+
+	}
+	months, _ := strconv.Atoi(m)
+	// Setting the year correct
+	if months > 12 {
+		y = strconv.Itoa(months / 12)
+		m = strconv.Itoa(months % 12)
+	}
+
+	uptime = "P" + y + "Y" + m + "M" + d + "DT" + hour + "H" + min + "M" + sek + "S"
+
+	return uptime
 }

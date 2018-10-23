@@ -4,7 +4,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"paragliding/admin"
 	"paragliding/config"
+	"paragliding/database"
 	"paragliding/handlers"
 	"time"
 )
@@ -17,8 +19,17 @@ func main() {
 		port = "8080"
 	}
 
+	//fmt.Println(handlers.SendDiscord("..."))
 	var err error
-	handlers.GlobalDB, err = config.GetMongoDB()
+	dbURL, ok := os.LookupEnv("DBURL")
+	dbName, ok2 := os.LookupEnv("AuthDatabase")
+	dbCollection, ok3 := os.LookupEnv("DBCollection")
+	if !ok || !ok2 || !ok3 {
+		handlers.GlobalDB, err = config.GetMongoDB()
+	} else {
+		handlers.GlobalDB = database.MongoDB{DatabaseURL: dbURL, DatabaseName: dbName, CollectionName: dbCollection}
+	}
+
 	if err != nil {
 		log.Fatalf("Error connecting to db, %v", err)
 	}
@@ -28,6 +39,19 @@ func main() {
 	http.HandleFunc("/paragliding/api/", handlers.Index)
 	http.HandleFunc("/paragliding/api/track", handlers.RegAndShowTrack)
 	http.HandleFunc("/paragliding/api/track/", handlers.ShowTrackInfo)
+
+	// Ticker handlers
+	http.HandleFunc("/api/ticker/", handlers.GetTickerInfo)
+	http.HandleFunc("/api/ticker/latest", handlers.GetLatestTicker)
+
+	//	Admin handlers
+	// TODO: implementer slik at bare admin user bruker dette (ikke expose til alle)
+	http.HandleFunc("/admin/api/tracks_count", admin.GetTracksCount)
+	http.HandleFunc("/admin/api/tracks", admin.DeleteAllTracks)
+
+	//Webhooks  /api/webhook/new_track/
+	http.HandleFunc("/api/webhook/new_track/", handlers.RegisterWebhook)
+
 	err = http.ListenAndServe(":"+port, nil)
 	log.Fatalf("Server error: %s", err)
 }

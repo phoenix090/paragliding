@@ -55,3 +55,8 @@ func main() {
 	err = http.ListenAndServe(":"+port, nil)
 	log.Fatalf("Server error: %s", err)
 }
+
+// TODO:
+// husk å gjøre CAP implementering
+// husk å gjøre ferdig GET /api/ticker/<timestamp>
+// Send webhook til subs

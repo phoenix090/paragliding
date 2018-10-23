@@ -38,7 +38,7 @@ type Information struct {
 // Track igc track record
 type Track struct {
 	//Id          bson.ObjectId `bson:"_id,omitempty"`
-	TrackID       int
+	TrackID       int       `json:"trackid"`
 	HDate         time.Time `json:"H_date"`
 	Pilot         string    `json:"pilot"`
 	Glider        string    `json:"glider"`

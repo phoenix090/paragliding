@@ -1,0 +1,6 @@
+
+build:
+  languages:
+    - Go
+run:
+  web: cd cmd/heroku/; go build . && ./heroku

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"paragliding/handlers"
 	"strconv"
 	"strings"
 	"time"
@@ -185,7 +184,7 @@ func TriggerWebhook() error {
 // Used in the openstack deployment
 func NotifySubs() {
 	before := time.Now()
-	trDBCount := handlers.GlobalDB.Count()
+	trDBCount := GlobalDB.Count()
 	if Count < trDBCount {
 		for _, hook := range allhooks {
 			hook.currentTriggerVal -= trDBCount - Count
@@ -196,7 +195,7 @@ func NotifySubs() {
 				resObj := WebHookResponse{Tlatest: ticker.TLatest, Tracks: ticker.Tracks, Processing: tot}
 				err := WebhookToDiscord(resObj, hook.WebhookURL)
 				if err != nil {
-					return err
+					//return err
 				}
 				hook.currentTriggerVal = hook.MinTriggerValue
 			}

@@ -4,36 +4,21 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"paragliding/admin"
-	"paragliding/config"
-	"paragliding/database"
 	"paragliding/handlers"
-	"time"
 )
 
+// For Heroku
 func main() {
 
-	handlers.Start = time.Now()
 	port, ok := os.LookupEnv("PORT")
 	if !ok {
 		port = "8080"
 	}
 
-	//fmt.Println(handlers.SendDiscord("..."))
-	var err error
-	dbURL, ok := os.LookupEnv("DBURL")
-	dbName, ok2 := os.LookupEnv("AuthDatabase")
-	dbCollection, ok3 := os.LookupEnv("DBCollection")
-	if !ok || !ok2 || !ok3 {
-		handlers.GlobalDB, err = config.GetMongoDB()
-	} else {
-		handlers.GlobalDB = database.MongoDB{DatabaseURL: dbURL, DatabaseName: dbName, CollectionName: dbCollection}
-	}
-
+	err := handlers.Connect()
 	if err != nil {
-		log.Fatalf("Error connecting to db, %v", err)
+		log.Fatal(err)
 	}
-	handlers.GlobalDB.Init()
 
 	http.HandleFunc("/paragliding/", handlers.Redirect)
 	http.HandleFunc("/paragliding/api/", handlers.Index)
@@ -45,8 +30,8 @@ func main() {
 	http.HandleFunc("/api/ticker/latest", handlers.GetLatestTicker)
 
 	//	Admin handlers
-	http.HandleFunc("/admin/api/tracks_count", admin.GetTracksCount)
-	http.HandleFunc("/admin/api/tracks", admin.DeleteAllTracks)
+	http.HandleFunc("/admin/api/tracks_count", handlers.GetTracksCount)
+	http.HandleFunc("/admin/api/tracks", handlers.DeleteAllTracks)
 
 	//Webhooks  /api/webhook/new_track/
 	http.HandleFunc("/api/webhook/new_track/", handlers.RegisterWebhook)
@@ -54,9 +39,3 @@ func main() {
 	err = http.ListenAndServe(":"+port, nil)
 	log.Fatalf("Server error: %s", err)
 }
-
-// TODO:
-// gjør ferdig ticker/latest
-// husk å gjøre CAP implementering
-// husk å gjøre ferdig GET /api/ticker/<timestamp>
-// Send webhook til subs

@@ -1,1 +1,1 @@
-web: paragliding
+web: paragliding/cmd/heroku/

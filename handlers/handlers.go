@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"paragliding/config"
 	"paragliding/database"
 	"regexp"
 	"strconv"
@@ -22,9 +24,27 @@ var GlobalDB database.MongoDB
 //ticker obj
 var ticker database.Ticker
 
-/*
-Redirects req from paragliding/ to paragliding/api/
-*/
+// Connect gets connection and initialize global vars
+func Connect() error {
+	Start = time.Now()
+	//fmt.Println(handlers.SendDiscord("..."))
+	dbURL, ok := os.LookupEnv("DBURL")
+	dbName, ok2 := os.LookupEnv("AuthDatabase")
+	dbCollection, ok3 := os.LookupEnv("DBCollection")
+	var err error
+	if !ok || !ok2 || !ok3 {
+		GlobalDB, err = config.GetMongoDB()
+		if err != nil {
+			return err
+		}
+	} else {
+		GlobalDB = database.MongoDB{DatabaseURL: dbURL, DatabaseName: dbName, CollectionName: dbCollection}
+	}
+	GlobalDB.Init()
+	return nil
+}
+
+// Redirect req from paragliding/ to paragliding/api/
 func Redirect(w http.ResponseWriter, r *http.Request) {
 
 	reg := regexp.MustCompile("^/(paragliding/)$")

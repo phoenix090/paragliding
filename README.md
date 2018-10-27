@@ -1,7 +1,7 @@
 # paragliding
 ### Assignment 2 in IMT2681 Cloud Technologies.
 Similar to assignment 1, igcinfo but with more api- endpoints and webhooks implemented.
-This api uses mlab (mongodb) to collect all the tracks.
+This api uses mlab (mongodb) to restore all the tracks.
 
 All the below return 404 or 501 (invalid req method) when an error occours or the track is not found.
 

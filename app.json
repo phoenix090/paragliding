@@ -1,0 +1,12 @@
+
+{
+    "name": "paragliding",
+    "description": "igc API",
+    "keywords": [
+        "go",
+        "heroku",
+        "template"
+    ],
+    "website": "https://github.com/phoenix090/paragliding",
+    "repository": "https://github.com/phoenix090/paragliding"
+}

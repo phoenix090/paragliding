@@ -13,12 +13,10 @@ import (
 	"github.com/marni/goigc"
 )
 
-/*   Global vars   */
-
 // Start time of the api
 var Start time.Time
 
-//Global_db
+//GlobalDB ...
 var GlobalDB database.MongoDB
 
 //ticker obj
@@ -77,7 +75,7 @@ func RegAndShowTrack(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		allTracks, ok := GlobalDB.GetAll()
 		if !ok {
-			http.Error(w, "Error getting all the tracks", 404)
+			http.Error(w, http.StatusText(404), 404)
 		}
 		var allIDs = make([]int, GlobalDB.Count())
 		for index, tr := range allTracks {
@@ -107,7 +105,7 @@ func HandleTrackPost(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
-			http.Error(w, "Error connecting to db", 404)
+			http.Error(w, http.StatusText(404), 404)
 		}
 		count := GlobalDB.Count()
 		id := count + 1
@@ -121,8 +119,9 @@ func HandleTrackPost(w http.ResponseWriter, r *http.Request) {
 			Timestamp:     time.Now(),
 		}
 		err = GlobalDB.Add(newTrack)
+		TriggerWebhook()
 		if err != nil {
-			http.Error(w, "Error inserting track into db", 404)
+			http.Error(w, http.StatusText(404), 404)
 		}
 		json.NewEncoder(w).Encode(id)
 	}
@@ -195,100 +194,108 @@ func ShowTrackField(w http.ResponseWriter, r *http.Request, obj database.Track, 
 
 /****		TICKER HANDLERS		 ***/
 
-/*
-GET /api/ticker/latest
-
-
-What: returns the timestamp of the latest added track
-Response type: text/plain
-Response code: 200 if everything is OK, appropriate error code otherwise.
-Response: <timestamp> for the latest added track
-GetLatestTicker
-*/
+//GetLatestTicker the latest timestamp
 func GetLatestTicker(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
-	if r.Method == "GET" {
-		process := time.Now()
-		PopulateTickerInfo()
-		t := time.Now()
-		ticker.Process = t.Sub(process)
-		// eller after := time.Since(process).Seconds() / 1000
-		fmt.Fprint(w, ticker.TLatest)
-	} else {
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-	}
+	process := time.Now()
+	PopulateTickerInfo(3, false, "")
+	t := time.Now()
+	ticker.Process = t.Sub(process)
+	// eller after := time.Since(process).Seconds() / 1000
+	fmt.Fprint(w, ticker.TLatest)
 }
 
-/*
-
-GET /api/ticker/
-
-
-What: returns the JSON struct representing the ticker for the IGC tracks. The first track returned should be the oldest. The array of track ids returned should be capped at 5, to emulate "paging" of the responses. The cap (5) should be a configuration parameter of the application (ie. easy to change by the administrator).
-Response type: application/json
-Response code: 200 if everything is OK, appropriate error code otherwise.
-Response
-*/
+// GetTickerInfo getst ticker with timestamps with cap if omitted from the user as GET- var
 func GetTickerInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
+	// FIKS PATH ERROR
+	// parts := strings.Split(r.URL.Path, "/")
+
 	if r.Method == "GET" {
+		reg := regexp.MustCompile("^/api/ticker/([A-Z. a-z0-9:-]*)$")
+		parts := reg.FindStringSubmatch(r.URL.Path)
+
 		process := time.Now()
-		PopulateTickerInfo()
+		var default_cap = 5
+		cap, ok := r.URL.Query()["cap"]
+		if ok {
+			if cap[0] != "" {
+				c, err := strconv.Atoi(cap[0])
+				if err != nil || c > 0 {
+					default_cap = c
+					fmt.Println(default_cap)
+				}
+			}
+		}
+
+		if parts == nil {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			return
+		}
+		//Goes to endpoint /api/ticker/<timestamp> when conditions are met
+		if len(parts) == 2 && parts[1] != "" {
+			err := PopulateTickerInfo(default_cap, true, parts[1])
+			if err != nil {
+				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			}
+			t := time.Now()
+			ticker.Process = t.Sub(process)
+			json.NewEncoder(w).Encode(ticker)
+			return
+		}
+
+		err := PopulateTickerInfo(default_cap, false, "")
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		}
 		t := time.Now()
 		ticker.Process = t.Sub(process)
-		parts := strings.Split(r.URL.Path, "/")
-		//fmt.Println(parts[3], len(parts))
-		if len(parts) == 4 && parts[3] != "" {
-			// skal håndtere GET /api/ticker/<timestamp>
-		}
 		json.NewEncoder(w).Encode(ticker)
 	} else {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 	}
 }
 
-// Populates ticker obj dynamicly
-func PopulateTickerInfo() database.Ticker {
+// PopulateTickerInfo makes ticker obj dynamically
+// the bool which desides if ticker is maid for /api/ticker/<timestamp>, if not it will be false
+func PopulateTickerInfo(cap int, which bool, param string) error {
 	totTracks, ok := GlobalDB.GetAll()
 	ticker = database.Ticker{}
 	if !ok {
-		fmt.Println("something went wrong when getting all tracks")
+		// FIKS error handling
 	}
 
+	// Handles cap
 	for idx, track := range totTracks {
-		if idx == 0 {
-			ticker.TStart = track.Timestamp
+		if idx+1 <= cap {
+			if idx == 0 {
+				ticker.TStart = track.Timestamp
+			}
+			if idx+1 == cap {
+				ticker.TStop = track.Timestamp
+			}
+			// Populating []id for tracks accourding to /api/ticker/<timestamp>
+			if which {
+				match, err := time.Parse(time.RFC3339, param)
+				if err != nil {
+					return err
+				}
+				// Checking if the tracks timestamp is higher then the params
+				if match.After(track.Timestamp) {
+					ticker.Tracks = append(ticker.Tracks, track.TrackID)
+					//fmt.Println("Puttet inn track med nr", track.TrackID)
+				}
+			} else {
+				// And now for /api/ticker/
+				ticker.Tracks = append(ticker.Tracks, track.TrackID)
+			}
 		}
-		ticker.Tracks = append(ticker.Tracks, track.TrackID)
 		if idx+1 == GlobalDB.Count() {
 			ticker.TLatest = track.Timestamp
-			ticker.TStop = track.Timestamp
 		}
 	}
-	return ticker
+	return nil
 }
-
-// WEBHOOKS API
-
-/*
-POST /api/webhook/new_track/
-
-
-What: Registration of new webhook for notifications about tracks being added to the system. Returns the details about the registration. The webhookURL is required parameter of the request. The minTriggerValue is optional integer, that defaults to 1 if ommited. It indicated the frequency of updates - after how many new tracks the webhook should be called.
-Response type: application/json
-Response code: 200 or 201 if everything is OK, appropriate error code otherwise.
-Request
-
-
-{
-    "webhookURL": {
-      "type": "string"
-    },
-    "minTriggerValue": {
-      "type": "number"
-    }
-}
-*/
 
 /*
 ** GetUptime updates uptime and formates it in ISO 8601 standard

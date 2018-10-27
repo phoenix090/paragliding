@@ -38,7 +38,7 @@ type Information struct {
 // Track igc track record
 type Track struct {
 	//Id          bson.ObjectId `bson:"_id,omitempty"`
-	TrackID       int       `json:"trackid"`
+	TrackID       int
 	HDate         time.Time `json:"H_date"`
 	Pilot         string    `json:"pilot"`
 	Glider        string    `json:"glider"`
@@ -48,13 +48,12 @@ type Track struct {
 	Timestamp     time.Time
 }
 
-// Ticker Flytte denne?
 type Ticker struct {
-	TLatest time.Time
-	TStart  time.Time
-	TStop   time.Time
-	Tracks  []int
-	Process time.Duration
+	TLatest time.Time     `json:"t_latest"`
+	TStart  time.Time     `json:"t_start"`
+	TStop   time.Time     `json:"t_stop"`
+	Tracks  []int         `json:"tracks"`
+	Process time.Duration `json:"processing"`
 }
 
 /*

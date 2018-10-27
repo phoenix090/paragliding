@@ -5,19 +5,19 @@ This api uses mlab (mongodb) to collect all the tracks.
 
 All the below return 404 or 501 (invalid req method) when an error occours or the track is not found.
 
-GET: /paragliding/api:
+### GET: /paragliding/api:
 Gives basic info about the api.
 returns: 
 { "uptime": <uptime>,  "info": "Service for Paragliding tracks.",  "version": "v1" }
 
-POST: /api/track:
+### POST: /api/track:
 returns: {  "id": "<id>" } when given correct igc file url.
 
-GET: /api/track:
+### GET: /api/track:
 Same as assignment1, returns:
 [<id1>, <id2>, ...]
   
-GET: /api/track/<id> 
+### GET: /api/track/<id> 
  returns:
 {
 "H_date": <date from File Header, H-record>,
@@ -28,7 +28,8 @@ GET: /api/track/<id>
 "track_src_url": <the original URL used to upload the track, ie. the URL used with POST>
 }
 
-GET: /api/track/<id>/<field> 
+### GET: /api/track/<id>/<field> 
+  
  returns:
 <pilot> for pilot
 <glider> for glider
@@ -37,10 +38,10 @@ GET: /api/track/<id>/<field>
 <H_date> for H_date
 <track_src_url> for track_src_url
   
-GET: /api/ticker/latest 
+### GET: /api/ticker/latest 
 returns latest timestamp.
 
-GET /api/ticker/
+### GET /api/ticker/
 returns: 
 {
 "t_latest": <latest added timestamp>,
@@ -52,10 +53,10 @@ returns:
 If you want to set the cap, use get- variable name "cap" in the url. example:
 /api/ticker/?cap=4
 
-GET: /api/ticker/<timestamp>
+### GET: /api/ticker/<timestamp>
 returns the same as the one above with a little modification. Starts with the track's timestamp HIGHER then the timestamp given. I use timestamps returned by time.Now(), so remember to send a time- format accourdingly to that when sending with timestamp. E.g: /api/ticker/2018-10-23T08:55:04.332Z
   
-POST: /api/webhook/new_track/
+### POST: /api/webhook/new_track/
 Request should be in the format:
 {
     "webhookURL": "http://remoteUrl:8080/randomWebhookPath",
@@ -64,20 +65,20 @@ Request should be in the format:
 returns the id of the webhook registered.
 when posted again with the same "webhookURL", a webhook is triggered and sent to that url.
 
-GET: /api/webhook/new_track/<webhook_id>
+### GET: /api/webhook/new_track/<webhook_id>
 if id exists, returns the webhook in format: 
 {
     "webhookURL": "http://remoteUrl:8080/randomWebhookPath",
     "minTriggerValue": 2
 }
 
-GET: /admin/api/tracks_count
+### GET: /admin/api/tracks_count
 returns the current count of all tracks in the DB
 i maid a little auth so everyone should not have access to admin- endpoints.
 Use admincode var, and set it to 12345 in the url. E.g /admin/api/tracks_count?admincode=12345
-otherwise it will deny and return 404. (Use this on all admin endpoints)
+##### otherwise it will deny and return 404. (Use this on all admin endpoints)
 
-DELETE: /admin/api/tracks
+### DELETE: /admin/api/tracks
 Deletes all the tracks from the db and returns "OK!" if everything went well.
 
 

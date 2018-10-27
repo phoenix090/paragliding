@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"paragliding/config"
 	"paragliding/database"
 	"regexp"
 	"strconv"
@@ -31,12 +30,8 @@ func Connect() error {
 	dbURL, ok := os.LookupEnv("DBURL")
 	dbName, ok2 := os.LookupEnv("AuthDatabase")
 	dbCollection, ok3 := os.LookupEnv("DBCollection")
-	var err error
 	if !ok || !ok2 || !ok3 {
-		GlobalDB, err = config.GetMongoDB()
-		if err != nil {
-			return err
-		}
+		return fmt.Errorf("Could't find env vars!! exiting")
 	} else {
 		GlobalDB = database.MongoDB{DatabaseURL: dbURL, DatabaseName: dbName, CollectionName: dbCollection}
 	}

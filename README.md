@@ -1,5 +1,5 @@
 # paragliding
-Assignment 2 in IMT2681 Cloud Technologies
+### Assignment 2 in IMT2681 Cloud Technologies.
 Similar to assignment 1, igcinfo but with more api- endpoints and webhooks implemented.
 This api uses mlab (mongodb) to collect all the tracks.
 

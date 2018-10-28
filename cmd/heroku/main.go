@@ -15,10 +15,7 @@ func main() {
 		port = "8080"
 	}
 
-	err := handlers.Connect()
-	if err != nil {
-		log.Fatal(err)
-	}
+	handlers.Connect()
 
 	http.HandleFunc("/paragliding/", handlers.Redirect)
 	http.HandleFunc("/paragliding/api/", handlers.Index)
@@ -36,6 +33,6 @@ func main() {
 	//Webhooks  /api/webhook/new_track/
 	http.HandleFunc("/api/webhook/new_track/", handlers.RegisterWebhook)
 
-	err = http.ListenAndServe(":"+port, nil)
+	err := http.ListenAndServe(":"+port, nil)
 	log.Fatalf("Server error: %s", err)
 }

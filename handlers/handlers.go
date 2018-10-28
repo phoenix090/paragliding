@@ -24,18 +24,19 @@ var GlobalDB database.MongoDB
 var ticker database.Ticker
 
 // Connect gets connection and initialize global vars
-func Connect() error {
+func Connect() {
 	Start = time.Now()
 
 	dbURL, ok := os.LookupEnv("DBURL")
 	dbName, ok2 := os.LookupEnv("DBNAME")
 	dbCollection, ok3 := os.LookupEnv("DBCOLLECTION")
 	if !ok || !ok2 || !ok3 {
-		return fmt.Errorf("Could't find env vars!! exiting")
+		dbURL = "mongodb://test:test123@ds221003.mlab.com:21003/mongo_db"
+		dbName = "mongo_db"
+		dbCollection = "track"
 	}
 	GlobalDB = database.MongoDB{DatabaseURL: dbURL, DatabaseName: dbName, CollectionName: dbCollection}
 	GlobalDB.Init()
-	return nil
 }
 
 // Redirect req from paragliding/ to paragliding/api/

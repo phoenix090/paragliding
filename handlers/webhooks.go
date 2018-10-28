@@ -182,7 +182,7 @@ func TriggerWebhook() error {
 
 // NotifySubs checks if there are new tracks registered and notifies by sending webhooks to subs
 // Used in the openstack deployment
-func NotifySubs() {
+func NotifySubs() error {
 	before := time.Now()
 	trDBCount := GlobalDB.Count()
 	if Count < trDBCount {
@@ -195,11 +195,12 @@ func NotifySubs() {
 				resObj := WebHookResponse{Tlatest: ticker.TLatest, Tracks: ticker.Tracks, Processing: tot}
 				err := WebhookToDiscord(resObj, hook.WebhookURL)
 				if err != nil {
-					//return err
+					return err
 				}
 				hook.currentTriggerVal = hook.MinTriggerValue
 			}
 		}
 	}
 	Count = trDBCount
+	return nil
 }

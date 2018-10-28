@@ -26,15 +26,13 @@ var ticker database.Ticker
 // Connect gets connection and initialize global vars
 func Connect() error {
 	Start = time.Now()
-	//fmt.Println(handlers.SendDiscord("..."))
 	dbURL, ok := os.LookupEnv("DBURL")
-	dbName, ok2 := os.LookupEnv("AuthDatabase")
-	dbCollection, ok3 := os.LookupEnv("DBCollection")
+	dbName, ok2 := os.LookupEnv("DBNAME")
+	dbCollection, ok3 := os.GLookupEnvetenv("DBCOLLECTION")
 	if !ok || !ok2 || !ok3 {
 		return fmt.Errorf("Could't find env vars!! exiting")
-	} else {
-		GlobalDB = database.MongoDB{DatabaseURL: dbURL, DatabaseName: dbName, CollectionName: dbCollection}
 	}
+	GlobalDB = database.MongoDB{DatabaseURL: dbURL, DatabaseName: dbName, CollectionName: dbCollection}
 	GlobalDB.Init()
 	return nil
 }

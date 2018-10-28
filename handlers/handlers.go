@@ -26,9 +26,10 @@ var ticker database.Ticker
 // Connect gets connection and initialize global vars
 func Connect() error {
 	Start = time.Now()
+
 	dbURL, ok := os.LookupEnv("DBURL")
 	dbName, ok2 := os.LookupEnv("DBNAME")
-	dbCollection, ok3 := os.GLookupEnvetenv("DBCOLLECTION")
+	dbCollection, ok3 := os.LookupEnv("DBCOLLECTION")
 	if !ok || !ok2 || !ok3 {
 		return fmt.Errorf("Could't find env vars!! exiting")
 	}

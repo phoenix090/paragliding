@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-const discordWebhook = "https://discordapp.com/api/webhooks/503581701981732865/OCYiZbwzXY0LlwCZ6J8DhxuD6PFCja7PNC08Du9B0SfcNTR-LzLvaqJit5FJfbbL0Aod"
-
 // for restoring all webhooks
 var allhooks map[int]WebhookInfo
 
@@ -23,9 +21,8 @@ type Webhook struct {
 }
 
 type WebhookInfo struct {
-	WebhookURL        string `json:"webhookURL"`
-	MinTriggerValue   int    `json:"minTriggerValue"`
-	currentTriggerVal int    //used determine when to send webhook message
+	WebhookURL      string `json:"webhookURL"`
+	MinTriggerValue int    `json:"minTriggerValue"`
 }
 
 // WebHookResponse When webhook is invoked POST request
@@ -54,8 +51,7 @@ func RegisterWebhook(w http.ResponseWriter, r *http.Request) {
 		if newHook.MinTriggerValue <= 0 {
 			newHook.MinTriggerValue = 1
 		}
-		newHook.currentTriggerVal = newHook.MinTriggerValue
-		fmt.Println("I register", newHook.MinTriggerValue)
+
 		if allhooks == nil {
 			allhooks = make(map[int]WebhookInfo)
 		}
@@ -76,8 +72,8 @@ func RegisterWebhook(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		allhooks[id] = newHook
 		json.NewEncoder(w).Encode(id)
+		allhooks[id] = newHook
 	case "GET":
 		getWebhookByID(w, r)
 	case "DELETE":
@@ -160,12 +156,11 @@ func WebhookToDiscord(payload WebHookResponse, url string) error {
 
 // TriggerWebhook sends webook when triggervalue is met
 // Updates triggervalue when new track is registered
-func TriggerWebhook() error {
+func TriggerWebhook(count int) error {
 	// Make extra field that counts the trigger value down?
 	before := time.Now()
 	for _, hook := range allhooks {
-		hook.currentTriggerVal--
-		if hook.currentTriggerVal == 0 {
+		if count%hook.MinTriggerValue == 0 {
 			PopulateTickerInfo(hook.MinTriggerValue, false, "")
 			after := time.Now()
 			tot := after.Sub(before).Seconds() * 1000
@@ -174,33 +169,31 @@ func TriggerWebhook() error {
 			if err != nil {
 				return err
 			}
-			hook.currentTriggerVal = hook.MinTriggerValue
 		}
 	}
 	return nil
 }
 
-// NotifySubs checks if there are new tracks registered and notifies by sending webhooks to subs
-// Used in the openstack deployment
-func NotifySubs() error {
+// SendLogToDiscord Sends webhook to a predefined webhook.
+// Sends webhook only if there are new tracks in the record.
+func SendLogToDiscord(url string, count *int) (int, error) {
 	before := time.Now()
-	trDBCount := GlobalDB.Count()
-	if Count < trDBCount {
-		for _, hook := range allhooks {
-			hook.currentTriggerVal -= trDBCount - Count
-			if hook.currentTriggerVal <= 0 {
-				PopulateTickerInfo(hook.MinTriggerValue, false, "")
-				after := time.Now()
-				tot := after.Sub(before).Seconds() * 1000
-				resObj := WebHookResponse{Tlatest: ticker.TLatest, Tracks: ticker.Tracks, Processing: tot}
-				err := WebhookToDiscord(resObj, hook.WebhookURL)
-				if err != nil {
-					return err
-				}
-				hook.currentTriggerVal = hook.MinTriggerValue
-			}
+	all, ok := GlobalDB.GetAll()
+	if !ok {
+		return 0, fmt.Errorf("error")
+	}
+	diff := len(all) - *count
+	if diff != 0 {
+		PopulateTickerInfo(diff, false, "")
+		after := time.Now()
+		tot := after.Sub(before).Seconds() * 1000
+		resObj := WebHookResponse{Tlatest: ticker.TLatest, Tracks: ticker.Tracks, Processing: tot}
+		err := WebhookToDiscord(resObj, url)
+		if err != nil {
+			return 0, err
 		}
 	}
-	Count = trDBCount
-	return nil
+
+	*count = len(all)
+	return *count, nil
 }

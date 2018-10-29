@@ -43,11 +43,11 @@ func DeleteAllTracks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
 	if r.Method == "DELETE" {
 		if GlobalDB.Count() == 0 {
-			fmt.Fprint(w, "Track records are empty...")
+			fmt.Fprint(w, "Empty record")
 		} else {
 			err := GlobalDB.DeleteAll()
 			if err != nil {
-				fmt.Fprint(w, "Error deleting all the records")
+				http.Error(w, http.StatusText(404), 404)
 				return
 			}
 			fmt.Fprint(w, "OK!")

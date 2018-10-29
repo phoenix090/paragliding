@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestSomething(t *testing.T) {
+func TestAdd(t *testing.T) {
 
 }
 

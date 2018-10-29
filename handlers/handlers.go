@@ -44,7 +44,7 @@ func Redirect(w http.ResponseWriter, r *http.Request) {
 
 	reg := regexp.MustCompile("^/(paragliding/)$")
 	parts := reg.FindStringSubmatch(r.URL.Path)
-	if parts != nil {
+	if parts != nil && r.Method == "GET" {
 		http.Redirect(w, r, r.URL.Path+"/api/", 301)
 	} else {
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -134,7 +134,7 @@ func HandleTrackPost(w http.ResponseWriter, r *http.Request) {
 			Timestamp:     time.Now(),
 		}
 		err = GlobalDB.Add(newTrack)
-		TriggerWebhook()
+		TriggerWebhook(id)
 		if err != nil {
 			http.Error(w, http.StatusText(404), 404)
 		}
@@ -212,6 +212,10 @@ func ShowTrackField(w http.ResponseWriter, r *http.Request, obj database.Track, 
 //GetLatestTicker the latest timestamp
 func GetLatestTicker(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
+	if r.Method != "GET" {
+		http.Error(w, http.StatusText(405), http.StatusMethodNotAllowed)
+		return
+	}
 	process := time.Now()
 	PopulateTickerInfo(3, false, "")
 	t := time.Now()
@@ -223,8 +227,6 @@ func GetLatestTicker(w http.ResponseWriter, r *http.Request) {
 // GetTickerInfo getst ticker with timestamps with cap if omitted from the user as GET- var
 func GetTickerInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json; charset=UTF-8")
-	// FIKS PATH ERROR
-	// parts := strings.Split(r.URL.Path, "/")
 
 	if r.Method == "GET" {
 		reg := regexp.MustCompile("^/api/ticker/([A-Z. a-z0-9:-]*)$")
@@ -238,7 +240,6 @@ func GetTickerInfo(w http.ResponseWriter, r *http.Request) {
 				c, err := strconv.Atoi(cap[0])
 				if err != nil || c > 0 {
 					default_cap = c
-					fmt.Println(default_cap)
 				}
 			}
 		}
@@ -279,10 +280,10 @@ func PopulateTickerInfo(cap int, which bool, param string) error {
 	if !ok {
 		// FIKS error handling
 	}
-
+	all := len(totTracks)
 	// Handles cap
 	for idx, track := range totTracks {
-		if idx+1 <= cap {
+		if idx > all-cap {
 			if idx == 0 {
 				ticker.TStart = track.Timestamp
 			}

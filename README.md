@@ -5,6 +5,11 @@ This api uses mlab (mongodb) to restore all the tracks.
 
 All the below return 404 or 501 (invalid req method) when an error occours or the track is not found.
 
+### Heroku
+https://apiparagliding.herokuapp.com/paragliding/api/
+### Openstack
+http://10.212.136.91:8080/paragliding/api/
+
 ### GET: /paragliding/api:
 Gives basic info about the api.
 returns: 
@@ -81,6 +86,8 @@ Use admincode var, and set it to 12345 in the url. E.g /admin/api/tracks_count?a
 ### DELETE: /admin/api/tracks
 Deletes all the tracks from the db and returns "OK!" if everything went well.
 
+### OTHERS
+The clock trigger is implemented onyl in Heroku, didn't see the point of doing it in two places and the assignment didn't specify where.
 
 
  
